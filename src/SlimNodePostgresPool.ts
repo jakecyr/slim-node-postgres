@@ -60,7 +60,6 @@ export class SlimNodePostgresPool implements DatabasePool {
     return {
       affectedRows: result.rowCount,
       changedRows: result.rowCount,
-      insertId: result.rows.length > 0 ? result.rows[0].id : null,
     };
   }
 

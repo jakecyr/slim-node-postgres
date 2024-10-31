@@ -1,9 +1,12 @@
-jest.unmock('mysql2/promise');
-import { InvalidExecuteStatementError } from '../src/errors/InvalidExecuteStatement';
 import { ExecuteResult } from '../src/models/ExecuteResult';
+import { InsertResult } from '../src/models/InsertResult';
 import { SlimNodePostgres } from '../src/SlimNodePostgres';
 
 const CONNECTION_STRING = process.env.CONNECTION_STRING;
+
+if (!CONNECTION_STRING) {
+  throw new Error('CONNECTION_STRING must be set');
+}
 
 interface TempTable {
   id: number;
@@ -12,7 +15,7 @@ interface TempTable {
 
 const tempTableName = 'temptable';
 
-describe('SlimNodeMySQL', () => {
+describe('SlimNodePostgres', () => {
   let db: SlimNodePostgres;
 
   beforeAll(async () => {
@@ -20,46 +23,38 @@ describe('SlimNodeMySQL', () => {
 
     try {
       await db.execute(
-        `create table ${tempTableName} (id int auto_increment primary key, name varchar(255))`
+        `CREATE TABLE IF NOT EXISTS ${tempTableName} (id SERIAL PRIMARY KEY, name VARCHAR(255))`
       );
     } catch (e) {
-      await db.execute(`drop table ${tempTableName}`);
-      await db.execute(
-        `create table ${tempTableName} (id int auto_increment primary key, name varchar(255))`
-      );
+      console.error('Error during table creation', e);
     }
-
-    await db.close();
   });
 
   beforeEach(async () => {
     if (db) {
       await db.close();
     }
-
     db = new SlimNodePostgres(CONNECTION_STRING);
   });
 
   afterEach(async () => {
-    await db.execute(`delete from ${tempTableName}`);
+    await db.execute(`DELETE FROM ${tempTableName}`);
     await db.close();
   });
 
   afterAll(async () => {
     db = new SlimNodePostgres(CONNECTION_STRING);
 
-    await db.execute(`drop table ${tempTableName}`);
+    await db.execute(`DROP TABLE IF EXISTS ${tempTableName}`);
     await db.close();
   });
 
   describe('execute', () => {
     it('should run an insert and return an execute result', async () => {
-      const result: ExecuteResult = await db.execute(
-        `insert into ${tempTableName} (id, name) values (@id, @name)`,
-        {
-          id: 1,
-          name: 'test',
-        }
+      const result: InsertResult = await db.insert(
+        tempTableName,
+        ['name'],
+        ['test']
       );
 
       expect(result).toBeDefined();
@@ -70,7 +65,7 @@ describe('SlimNodeMySQL', () => {
     });
 
     it('should run an update and return an execute result', async () => {
-      await db.execute(`insert into ${tempTableName} (id, name) values (1, "test")`);
+      await db.insert(tempTableName, ['id', 'name'], [1, 'test']);
 
       const updateResult: ExecuteResult = await db.execute(
         `update ${tempTableName} set name = @name where id = @id`,
@@ -82,20 +77,12 @@ describe('SlimNodeMySQL', () => {
 
       expect(updateResult).toBeDefined();
       expect(updateResult).toHaveProperty('affectedRows');
-      expect(updateResult).toHaveProperty('insertId');
-      expect(updateResult.insertId).toEqual(0);
       expect(updateResult.affectedRows).toEqual(1);
       expect(updateResult.changedRows).toEqual(1);
     });
 
-    it('throws an error if a non-CUD operation is called', async () => {
-      expect(db.execute(`select * from ${tempTableName} limit 1`)).rejects.toThrow(
-        InvalidExecuteStatementError
-      );
-    });
-
     it('returns the correct object for a delete', async () => {
-      await db.execute(`insert into ${tempTableName} (id, name) values (1, "test")`);
+      await db.insert(tempTableName, ['id', 'name'], [1, 'test']);
 
       const deletionResult = await db.execute(
         `delete from ${tempTableName} where id = 1`
@@ -104,7 +91,6 @@ describe('SlimNodeMySQL', () => {
       expect(deletionResult).toBeDefined();
       expect(deletionResult).toHaveProperty('affectedRows');
       expect(deletionResult.affectedRows).toEqual(1);
-      expect(deletionResult.insertId).toEqual(0);
 
       const itemExistsFalse = await db.exists(
         `select * from ${tempTableName} where id = 1`
@@ -118,9 +104,7 @@ describe('SlimNodeMySQL', () => {
     it('queries without prepared statement and returns an array', async () => {
       const name = 'test';
 
-      await db.execute(
-        `insert into ${tempTableName} (id, name) values (1, "${name}")`
-      );
+      await db.insert(tempTableName, ['id', 'name'], [1, name]);
 
       const queryValues = await db.query<TempTable>(
         `select * from ${tempTableName}`
@@ -133,13 +117,7 @@ describe('SlimNodeMySQL', () => {
       const id = 1;
       const name = 'test2';
 
-      await db.execute(
-        `insert into ${tempTableName} (id, name) values (@id, @name)`,
-        {
-          id,
-          name,
-        }
-      );
+      await db.insert(tempTableName, ['id', 'name'], [id, name]);
 
       const queryValuesWithParams = await db.query<TempTable>(
         `
@@ -162,7 +140,7 @@ describe('SlimNodeMySQL', () => {
 
   describe('getValue', () => {
     it('returns the correct value', async () => {
-      await db.execute(`insert into ${tempTableName} (id, name) values (1, "test")`);
+      await db.insert(tempTableName, ['id', 'name'], [1, 'test']);
 
       const value: string | null = await db.getValue<TempTable, 'name'>(
         'name',
@@ -189,18 +167,18 @@ describe('SlimNodeMySQL', () => {
 
   describe('exists', () => {
     it('returns true if the item exists', async () => {
-      await db.execute(`insert into ${tempTableName} (name) values ("test")`);
+      await db.insert(tempTableName, ['name'], ['test']);
 
       expect(
-        db.exists(`select * from ${tempTableName} where name = "test"`)
+        db.exists(`select * from ${tempTableName} where name = 'test'`)
       ).resolves.toBeTruthy();
     });
 
     it('returns false if the item does not exist', async () => {
-      await db.execute(`insert into ${tempTableName} (name) values ("test")`);
+      await db.insert(tempTableName, ['name'], ['test']);
 
       expect(
-        db.exists(`select * from ${tempTableName} where name = "FAKE"`)
+        db.exists(`select * from ${tempTableName} where name = 'FAKE'`)
       ).resolves.toBeFalsy();
     });
   });

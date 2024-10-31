@@ -1,6 +1,6 @@
-# Slim Node PostGres
+# Slim Node Postgres
 
-PostGres database class to abstract pooling and prepared statements.
+Postgres database class to abstract pooling and prepared statements.
 
 ![Another](https://img.shields.io/npm/v/slim-node-postgres.svg)
 
@@ -13,9 +13,9 @@ PostGres database class to abstract pooling and prepared statements.
 - [Methods](#methods)
   - [query](#query)
   - [execute](#execute)
+  - [insert](#insert)
   - [getOne](#getone)
   - [getValue](#getvalue)
-  - [execute](#execute)
   - [exists](#exists)
 - [Testing](#testing)
   - [Unit Tests](#unit-tests)
@@ -50,14 +50,8 @@ If non-`SELECT` queries are executed, the resulting value will be of the type `E
 
 ```typescript
 interface ExecuteResult {
-  fieldCount: number;
   affectedRows: number;
   changedRows: number;
-  insertId: number;
-  serverStatus: number;
-  warningCount: number;
-  message: string;
-  procotol41: boolean;
 }
 ```
 
@@ -67,7 +61,7 @@ interface ExecuteResult {
 
 ```typescript
 // returns an array of rows found or an empty array if nothing is found
-const data: User = await database.query<User>(
+const data: User[] = await database.query<User>(
   `
   SELECT
       *
@@ -105,22 +99,21 @@ console.log(result.affectedRows); // 1
 console.log(result.changedRows); // 1
 ```
 
+### insert
+
+A convenient method for inserting data by specifying the table, columns, and values.
+
 Example insert:
 
 ```typescript
-const result: ExecuteResult = await database.execute(
-  `
-    INSERT INTO User (id, username)
-    VALUES (@id, @username)
-  `,
-  {
-    id: 3,
-    username: 'newUsername',
-  }
+const result: ExecuteResult = await database.insert(
+  'User',
+  ['id', 'username'],
+  [3, 'newUsername']
 );
 
 console.log(result.affectedRows); // 1
-console.log(result.insertId); // 3
+console.log(result.insertId); // The ID of the newly inserted row
 console.log(result.changedRows); // 0
 ```
 
@@ -128,7 +121,7 @@ console.log(result.changedRows); // 0
 
 ```typescript
 // returns an object with data from the matched row or null if no match was found
-const data: User = await database.getOne<User>(
+const data: User | null = await database.getOne<User>(
   `
     SELECT
         *
@@ -148,7 +141,7 @@ const data: User = await database.getOne<User>(
 
 ```typescript
 // returns value from column specified (generics are optional)
-const username: string = database.getValue<User, 'username'>(
+const username: string | null = await database.getValue<User, 'username'>(
   'username',
   `
     SELECT
@@ -169,7 +162,7 @@ const username: string = database.getValue<User, 'username'>(
 
 ```typescript
 // returns a boolean value depending on if any rows are returned or not
-const exists: boolean = await database.exists<User>(
+const exists: boolean = await database.exists(
   `
     SELECT *
     FROM User

@@ -2,6 +2,7 @@ import { Pool, PoolConfig } from 'pg';
 import { PoolAlreadyExistsError } from './errors/PoolAlreadyExistsError';
 import { ExecuteResult } from './models/ExecuteResult';
 import { PreparedStatementParameters } from './models/PreparedStatementParameters';
+import { InsertResult } from './models/InsertResult';
 
 /**
  * The main class for SlimNodePostgres to create a new connection to the database and perform queries.
@@ -48,6 +49,39 @@ export class SlimNodePostgres {
   }
 
   /**
+   * Inserts a new record into the specified table.
+   * @param tableName The name of the table to insert into.
+   * @param columns An array of column names to insert values into.
+   * @param values An array of values corresponding to the columns.
+   * @returns An ExecuteResult object containing information about the operation.
+   */
+  async insert(
+    tableName: string,
+    columns: string[],
+    values: any[]
+  ): Promise<InsertResult> {
+    if (columns.length !== values.length) {
+      throw new Error('Columns length must match values length.');
+    }
+
+    // Generate the parameter placeholders ($1, $2, ...)
+    const placeholders = values.map((_, index) => `$${index + 1}`);
+
+    // Construct the INSERT statement
+    const sql = `INSERT INTO ${this.escapeIdentifier(tableName)} (${columns
+      .map((col) => this.escapeIdentifier(col))
+      .join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING id`;
+
+    const result = await this.pool.query(sql, values);
+
+    return {
+      affectedRows: result.rowCount,
+      changedRows: result.rowCount,
+      insertId: result.rows.length > 0 ? result.rows[0].id : null,
+    };
+  }
+
+  /**
    * Executes a create, update, or delete SQL query and returns the result.
    * @param sql SQL to run
    * @param parameters Prepared statement parameters to replace in the SQL (keys should match the "@" in the SQL)
@@ -65,7 +99,6 @@ export class SlimNodePostgres {
     return {
       affectedRows: result.rowCount,
       changedRows: result.rowCount,
-      insertId: result.rows.length > 0 ? result.rows[0].id : null,
     };
   }
 
@@ -172,5 +205,15 @@ export class SlimNodePostgres {
       preparedSQL,
       preparedValues,
     };
+  }
+
+  /**
+   * Escapes an identifier (e.g., table name or column name) to prevent SQL injection.
+   * @param identifier The identifier to escape.
+   * @returns The escaped identifier.
+   */
+  private escapeIdentifier(identifier: string): string {
+    // Use double quotes to escape identifiers in PostgreSQL
+    return `"${identifier.replace(/"/g, '""')}"`;
   }
 }
