@@ -1,7 +1,7 @@
-import { SlimNodeMySQL } from './SlimNodeMySQL';
+import { SlimNodePostgres } from './SlimNodePostgres';
 import { ExecuteResult } from './models/ExecuteResult';
 
 export * from './errors/index';
-export { SlimNodeMySQL };
+export { SlimNodePostgres };
 export { ExecuteResult };
-export default SlimNodeMySQL;
+export default SlimNodePostgres;

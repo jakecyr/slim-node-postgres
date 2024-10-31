@@ -1,10 +1,9 @@
 {
-  "name": "slim-node-mysql",
+  "name": "slim-node-postgres",
   "version": "4.0.1",
-  "description": "MySQL database class to abstract pooling and prepared statements",
+  "description": "PostGres database class to abstract pooling and prepared statements",
   "keywords": [
-    "mysql",
-    "mysql2",
+    "postgres",
     "database",
     "abstract",
     "pooling",
@@ -43,6 +42,7 @@
     "typescript": "^4.6.4"
   },
   "dependencies": {
-    "mysql2": "^2.3.3"
+    "@types/pg": "^8.11.10",
+    "pg": "^8.13.1"
   }
 }

@@ -1,24 +1,22 @@
-import { createPool, Pool, PoolOptions, ResultSetHeader } from 'mysql2/promise';
-import { resultSetHeaderToExecuteResult } from './converters/resultSetHeaderToExecuteResult';
-import { InvalidExecuteStatementError } from './errors/InvalidExecuteStatement';
+import { Pool, PoolConfig } from 'pg';
 import { DatabasePool } from './interfaces/Pool';
 import { ConnectionConfig } from './models/ConnectionConfig';
 import { ExecuteResult } from './models/ExecuteResult';
 import { PreparedStatementParameters } from './models/PreparedStatementParameters';
-import { MySQLPreparedStatement } from './MySQLPreparedStatement';
+import { PostgresPreparedStatement } from './PostgresPreparedStatement';
 import { ConnectionStringParserStrategy } from './parsers/ConnectionStringParserStrategy';
 
-export class SlimNodeMySQLPool implements DatabasePool {
+export class SlimNodePostgresPool implements DatabasePool {
   private pool: Pool;
 
-  constructor(config: string | PoolOptions, otherPoolOptions?: PoolOptions) {
+  constructor(config: string | PoolConfig, otherPoolOptions?: PoolConfig) {
     if (typeof config === 'string') {
       const connection: ConnectionConfig =
         ConnectionStringParserStrategy.getParserStrategy(
           config
         ).parseConnectionString(config);
 
-      this.pool = createPool({
+      this.pool = new Pool({
         ...otherPoolOptions,
         host: connection.host,
         user: connection.user,
@@ -26,11 +24,11 @@ export class SlimNodeMySQLPool implements DatabasePool {
         database: connection.database,
       });
     } else {
-      this.pool = createPool(config);
+      this.pool = new Pool(config);
     }
   }
 
-  query<ReturnType>(
+  async query<ReturnType>(
     sql: string,
     parameters?: PreparedStatementParameters
   ): Promise<ReturnType[]> {
@@ -49,22 +47,21 @@ export class SlimNodeMySQLPool implements DatabasePool {
     let preparedValues: any[];
 
     if (parameters) {
-      const preparedStatement = new MySQLPreparedStatement(sql, parameters);
+      const preparedStatement = new PostgresPreparedStatement(
+        this.pool,
+        sql,
+        parameters
+      );
       ({ preparedSQL, preparedValues } = preparedStatement.prepare());
     }
 
-    const [header] = await this.pool.query<ResultSetHeader>(
-      preparedSQL,
-      preparedValues
-    );
+    const result = await this.pool.query(preparedSQL, preparedValues);
 
-    if (this.isResultSetHeader(header)) {
-      return resultSetHeaderToExecuteResult(header);
-    } else {
-      throw new InvalidExecuteStatementError(
-        'Unexpected non-ExecuteResult returned from execute method. Make sure to use query for SELECT statements.'
-      );
-    }
+    return {
+      affectedRows: result.rowCount,
+      changedRows: result.rowCount,
+      insertId: result.rows.length > 0 ? result.rows[0].id : null,
+    };
   }
 
   async close(): Promise<void> {
@@ -75,22 +72,20 @@ export class SlimNodeMySQLPool implements DatabasePool {
     sql: string,
     parameters: PreparedStatementParameters
   ): Promise<ReturnType[]> {
-    const preparedStatement = new MySQLPreparedStatement(sql, parameters);
+    const preparedStatement = new PostgresPreparedStatement(
+      this.pool,
+      sql,
+      parameters
+    );
     const { preparedSQL, preparedValues } = preparedStatement.prepare();
     return this.promiseQuery<ReturnType[]>(preparedSQL, preparedValues);
   }
 
   private async promiseQuery<ReturnType>(
     sql: string,
-    preparedValues?: string[]
+    preparedValues?: any[]
   ): Promise<ReturnType> {
-    const [data] = await this.pool.query<any>(sql, preparedValues);
-    return data;
-  }
-
-  private isResultSetHeader(data: any): data is ResultSetHeader {
-    return (
-      data && data.hasOwnProperty('affectedRows') && data.hasOwnProperty('insertId')
-    );
+    const result: any = await this.pool.query<ReturnType>(sql, preparedValues);
+    return result.rows;
   }
 }

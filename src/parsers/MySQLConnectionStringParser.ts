@@ -2,7 +2,7 @@ import { ConnectionConfig } from '../models/ConnectionConfig';
 import { ConnectionStringParser } from '../interfaces/ConnectionStringParser';
 import { ConnectionStringParseError } from '../errors/ConnectionStringParseError';
 
-export class MySQLConnectionStringParser implements ConnectionStringParser {
+export class PostgresConnectionStringParser implements ConnectionStringParser {
   parseConnectionString(connectionString: string): ConnectionConfig {
     let host: string;
     let user: string;
@@ -11,7 +11,7 @@ export class MySQLConnectionStringParser implements ConnectionStringParser {
     let otherConfig: Record<string, any>;
 
     try {
-      const parts = connectionString.replace('mysql://', '').split('@');
+      const parts = connectionString.replace('postgres://', '').split('@');
 
       if (parts.length !== 2) {
         throw new Error(`Invalid connection string. Multiple @ symbols found.`);

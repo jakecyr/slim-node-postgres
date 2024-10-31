@@ -1,9 +1,8 @@
-# Slim Node MySQL
+# Slim Node PostGres
 
-MySQL database class to abstract pooling and prepared statements.
+PostGres database class to abstract pooling and prepared statements.
 
-![Build Status](https://api.travis-ci.com/jakecyr/slim-node-server.svg)
-![Another](https://img.shields.io/npm/v/slim-node-mysql.svg)
+![Another](https://img.shields.io/npm/v/slim-node-postgres.svg)
 
 ## Table of Contents
 
@@ -27,22 +26,22 @@ MySQL database class to abstract pooling and prepared statements.
 To install the package from npm run:
 
 ```bash
-npm install slim-node-mysql
+npm install slim-node-postgres
 ```
 
 ## Download
 
-[Download the latest Slim Node MySQL package.](https://unpkg.com/slim-node-mysql)
+[Download the latest Slim Node Postgres package.](https://unpkg.com/slim-node-postgres)
 
 ## Example Setup
 
-It is recommended that a single `SlimNodeMySQL` instance is used throughout your app so it can effectively manage pooling.
+It is recommended that a single `SlimNodePostgres` instance is used throughout your app so it can effectively manage pooling.
 
 ```javascript
-const { SlimNodeMySQL } = require('slim-node-mysql');
+const { SlimNodePostgres } = require('slim-node-postgres');
 
-// create new database instance with the MySQL connection string
-const database = new SlimNodeMySQL(env.database);
+// create new database instance with the Postgres connection string
+const database = new SlimNodePostgres(env.database);
 ```
 
 ## Usage
@@ -115,7 +114,7 @@ const result: ExecuteResult = await database.execute(
     VALUES (@id, @username)
   `,
   {
-    id: 3
+    id: 3,
     username: 'newUsername',
   }
 );
@@ -182,7 +181,7 @@ const exists: boolean = await database.exists<User>(
   }
 );
 
-console.log(userExists); // true
+console.log(exists); // true
 ```
 
 ## Testing

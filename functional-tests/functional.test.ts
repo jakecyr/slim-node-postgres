@@ -1,7 +1,7 @@
 jest.unmock('mysql2/promise');
 import { InvalidExecuteStatementError } from '../src/errors/InvalidExecuteStatement';
 import { ExecuteResult } from '../src/models/ExecuteResult';
-import { SlimNodeMySQL } from '../src/SlimNodeMySQL';
+import { SlimNodePostgres } from '../src/SlimNodePostgres';
 
 const CONNECTION_STRING = process.env.CONNECTION_STRING;
 
@@ -13,10 +13,10 @@ interface TempTable {
 const tempTableName = 'temptable';
 
 describe('SlimNodeMySQL', () => {
-  let db: SlimNodeMySQL;
+  let db: SlimNodePostgres;
 
   beforeAll(async () => {
-    db = new SlimNodeMySQL(CONNECTION_STRING);
+    db = new SlimNodePostgres(CONNECTION_STRING);
 
     try {
       await db.execute(
@@ -37,7 +37,7 @@ describe('SlimNodeMySQL', () => {
       await db.close();
     }
 
-    db = new SlimNodeMySQL(CONNECTION_STRING);
+    db = new SlimNodePostgres(CONNECTION_STRING);
   });
 
   afterEach(async () => {
@@ -46,7 +46,7 @@ describe('SlimNodeMySQL', () => {
   });
 
   afterAll(async () => {
-    db = new SlimNodeMySQL(CONNECTION_STRING);
+    db = new SlimNodePostgres(CONNECTION_STRING);
 
     await db.execute(`drop table ${tempTableName}`);
     await db.close();
